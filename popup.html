@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Songless Solver Settings</title>
+    <style>
+        body { width: 280px; font-family: sans-serif; padding: 10px; font-size: 14px; color: #333; background-color: #f9f9f9; margin:0; }
+        .container { padding: 10px; }
+        label { display: block; margin-top: 10px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="password"] { 
+            width: calc(100% - 12px); 
+            padding: 6px; 
+            margin-top: 4px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button { 
+            padding: 9px 18px; 
+            margin-top: 20px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+        #status { margin-top: 12px; font-size: 0.9em; min-height: 1.2em; }
+        h3 { margin-top: 0; color: #222; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        p { font-size: 0.9em; color: #666; line-height: 1.4; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .ad-placeholder {
+            margin-top: 20px;
+            padding: 5px 0; 
+            border-top: 1px solid #eee;
+            text-align: center;
+            min-height: 70px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0; 
+        }
+        .ad-placeholder iframe {
+            border: none; 
+            width: 120px; 
+            height: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>Songless Solver Settings</h3>
+        <p>Enter your ACRCloud API credentials. You can get these for free from <a href="https://www.acrcloud.com/" target="_blank">ACRCloud</a>.</p>
+
+        <label for="acrHost">ACRCloud Host:</label>
+        <input type="text" id="acrHost" placeholder="e.g., identify-us-west-2.acrcloud.com">
+
+        <label for="acrAccessKey">Access Key:</label>
+        <input type="text" id="acrAccessKey" placeholder="Your ACRCloud Access Key">
+
+        <label for="acrAccessSecret">Access Secret:</label>
+        <input type="password" id="acrAccessSecret" placeholder="Your ACRCloud Access Secret">
+
+        <button id="saveButton">Save Credentials</button>
+        <div id="status"></div>
+    </div>
+
+    <div class="ad-placeholder">
+        <iframe src="ad_frame.html" title="Advertisement"></iframe>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

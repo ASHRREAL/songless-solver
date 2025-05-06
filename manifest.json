@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Songless Solver",
+  "version": "0.2.1",
+  "description": "Attempts to solve songs in the Songless game. Requires user-provided ACRCloud API keys.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://lessgames.com/songless",
+    "https://*.acrcloud.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://lessgames.com/songless"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icons/icon.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js", "popup.js", "ad_frame.html"],
+      "matches": ["https://lessgames.com/*", "<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'self'; frame-src 'self' https://googleads.g.doubleclick.net https://*.googlesyndication.com;"
+  }
+}
