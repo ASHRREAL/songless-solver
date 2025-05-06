@@ -1,0 +1,43 @@
+Privacy Policy for Songless Solver Chrome Extension
+
+Last Updated: 06/May/2025
+
+Thank you for using Songless Solver ("the Extension"), developed by ASHRREAL. This Privacy Policy describes how your information is handled by the Extension.
+
+**1. Information We Do Not Collect Directly**
+
+The Extension itself does **not** collect or store any Personally Identifiable Information (PII) about you, such as your name, email address, physical address, or general web browsing history. We do not track your activity across websites.
+
+**2. Information You Provide (User-Configured Credentials)**
+
+*   **ACRCloud API Credentials:** To function, the Extension requires you to provide your own ACRCloud API Host, Access Key, and Access Secret ("ACRCloud Credentials"). These credentials are provided by you voluntarily and are stored locally on your computer using Chrome's secure `chrome.storage.local` API.
+    *   **Usage:** These credentials are used **solely** to make requests from your browser directly to the ACRCloud service for the purpose of music recognition as part of the Extension's core functionality.
+    *   **Storage:** Your ACRCloud Credentials are stored only on your local device and are not transmitted to us or any third party by the Extension, other than directly to ACRCloud when a recognition request is made.
+    *   **Security:** While we use Chrome's standard local storage, please be mindful of the general security of your computer and browser.
+
+**3. Information Processed (Audio Snippets)**
+
+*   **Audio Data:** When music plays on the "Songless" game page (lessgames.com/songless) and the Extension is active, it captures a short audio snippet from that page.
+    *   **Usage:** This audio snippet is sent directly from your browser to the ACRCloud service (using your provided ACRCloud Credentials) for the sole purpose of music identification.
+    *   **Storage:** The Extension does **not** store these audio snippets persistently. They are processed in real-time and sent to ACRCloud. We do not have access to these audio snippets.
+*   **Songless Game Page Content:** The Extension reads minimal text content from the Songless game page (e.g., current song snippet duration) to configure its recording behavior. This information is not stored or transmitted beyond its immediate use within the Extension.
+
+**4. Third-Party Services**
+
+*   **ACRCloud:** The Extension relies on the ACRCloud music recognition service. When you use the Extension, audio snippets and your ACRCloud Credentials are sent to ACRCloud. Your interaction with ACRCloud is governed by ACRCloud's own Privacy Policy and Terms of Service, which you should review.
+*   **Google AdSense (Popup Ads):** The Extension's popup window may display advertisements served by Google AdSense. Google AdSense may use cookies or other tracking technologies to collect information for the purpose of serving personalized ads. This data collection is governed by Google's Privacy Policy. The ads are displayed within an iframe in the extension's popup and do not have access to the core functionality of the extension or the content of the Songless game page.
+
+**5. Data Security**
+
+We take reasonable precautions to protect the information handled by the Extension, primarily by relying on Chrome's built-in storage security for your ACRCloud credentials. However, no method of transmission over the Internet or electronic storage is 100% secure.
+
+**6. Data Usage Certifications**
+
+We certify that:
+*   We do not sell or transfer user data (including ACRCloud Credentials or audio snippets) to third parties, outside of the approved use cases described (i.e., sending data to ACRCloud as per user configuration and functionality, and Google AdSense for ad display).
+*   We do not use or transfer user data for purposes that are unrelated to the Extension's single purpose of song identification within the Songless game.
+*   We do not use or transfer user data to determine creditworthiness or for lending purposes.
+
+**7. Changes to This Privacy Policy**
+
+We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes.
