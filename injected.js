@@ -1,65 +1,75 @@
+let originalHowlPlay = null;
 let mediaRecorder = null;
 let audioChunks = [];
-let isRecording = false;
-let recordingDuration = 100;
-let lastAudioContext = null;
-let streamDestination = null;
-let connectedSourceNode = null;
+let recordingDurationMs = 100;
+let mediaStreamDestinationForRecording = null;
+let connectedSourceNodeForRecording = null;
+let isCurrentlyRecording = false;
+let lastUsedAudioContext = null;
 
-function createMediaStreamDestination(audioContext) {
-    if (!audioContext) return null;
-
-    if (audioContext !== lastAudioContext || !streamDestination) {
+function ensureMediaStreamDestination(audioCtx) {
+    if (!audioCtx) return null;
+    if (audioCtx !== lastUsedAudioContext || !mediaStreamDestinationForRecording) {
         try {
-            streamDestination = audioContext.createMediaStreamDestination();
-            lastAudioContext = audioContext;
+            mediaStreamDestinationForRecording = audioCtx.createMediaStreamDestination();
+            lastUsedAudioContext = audioCtx;
         } catch (e) {
-            console.error("Error creating media stream destination:", e);
             return null;
         }
     }
-    return streamDestination;
+    return mediaStreamDestinationForRecording;
 }
 
-function startRecording(sourceNode, audioContext, duration) {
-    if (isRecording) return;
-
-    isRecording = true;
-    recordingDuration = duration;
-
-    const destination = createMediaStreamDestination(audioContext);
-    if (!destination) {
-        console.error("Failed to create media stream destination");
-        isRecording = false;
+function startRecording(sourceNodeToConnect, sourceAudioCtx, durationMs) {
+    if (isCurrentlyRecording) return;
+    if (!sourceNodeToConnect || !sourceAudioCtx) {
+        window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: "No audio source/context for recording.", duration: durationMs / 1000 }, "*");
         return;
     }
 
-    if (connectedSourceNode && connectedSourceNode.context === audioContext) {
+    isCurrentlyRecording = true;
+    recordingDurationMs = durationMs;
+
+    const localMediaStreamDestination = ensureMediaStreamDestination(sourceAudioCtx);
+    if (!localMediaStreamDestination) {
+        window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: "Failed to ensure MediaStreamDestination for recording.", duration: recordingDurationMs / 1000 }, "*");
+        isCurrentlyRecording = false;
+        return;
+    }
+
+    if (connectedSourceNodeForRecording && connectedSourceNodeForRecording.context === sourceAudioCtx) {
         try {
-            connectedSourceNode.disconnect(destination);
-        } catch (e) {
-            console.error("Error disconnecting previous source node:", e);
-        }
+            connectedSourceNodeForRecording.disconnect(localMediaStreamDestination);
+        } catch (e) {}
     }
 
     try {
-        if (sourceNode.numberOfOutputs === 0 && !(sourceNode instanceof MediaElementAudioSourceNode)) {
-            throw new Error("Cannot connect a node with 0 outputs");
+        if (sourceNodeToConnect.numberOfOutputs === 0 && !(sourceNodeToConnect instanceof MediaElementAudioSourceNode)) {
+            if (sourceNodeToConnect === sourceAudioCtx.destination) {
+                throw new Error("Cannot connect AudioContext.destination directly for recording.");
+            }
+            if (window.Howler && window.Howler.masterGain && window.Howler.masterGain.context === sourceAudioCtx) {
+                sourceNodeToConnect = window.Howler.masterGain;
+                if (sourceNodeToConnect.numberOfOutputs === 0) throw new Error("Howler's masterGain also has 0 outputs for connection.");
+            } else {
+                throw new Error("Cannot connect a node with 0 outputs for recording.");
+            }
         }
 
-        sourceNode.connect(destination);
-        connectedSourceNode = sourceNode;
+        sourceNodeToConnect.connect(localMediaStreamDestination);
+        connectedSourceNodeForRecording = sourceNodeToConnect;
     } catch (err) {
-        console.error("Error connecting audio source:", err);
-        isRecording = false;
+        window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: `Audio stream connect error: ${err.message}`, duration: recordingDurationMs / 1000 }, "*");
+        isCurrentlyRecording = false;
         return;
     }
 
-    const stream = destination.stream;
+    const stream = localMediaStreamDestination.stream;
     try {
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm; codecs=opus' });
+        const options = { mimeType: 'audio/webm; codecs=opus', bitsPerSecond: 128000 };
+        mediaRecorder = new MediaRecorder(stream, options);
     } catch (e) {
-        mediaRecorder = new MediaRecorder(stream); // fallback
+        mediaRecorder = new MediaRecorder(stream);
     }
 
     audioChunks = [];
@@ -68,110 +78,116 @@ function startRecording(sourceNode, audioContext, duration) {
     };
 
     mediaRecorder.onstop = () => {
-        isRecording = false;
+        isCurrentlyRecording = false;
         if (audioChunks.length === 0) {
-            console.error("No audio recorded");
+            const errorMsg = recordingDurationMs <= 100
+                ? "audio clip too short"
+                : "No audio data recorded (empty chunks).";
+            window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: errorMsg, duration: recordingDurationMs / 1000 }, "*");
         } else {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
             const reader = new FileReader();
             reader.onloadend = () => {
-                console.log("Audio recorded:", reader.result);
+                window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", audioDataUri: reader.result, duration: recordingDurationMs / 1000 }, "*");
             };
             reader.onerror = () => {
-                console.error("Error reading audio blob");
+                window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: "FileReader error on blob.", duration: recordingDurationMs / 1000 }, "*");
             };
             reader.readAsDataURL(audioBlob);
         }
 
-        if (connectedSourceNode) {
+        if (connectedSourceNodeForRecording && localMediaStreamDestination) {
             try {
-                connectedSourceNode.disconnect(destination);
-                connectedSourceNode = null;
-            } catch (e) {
-                console.error("Error disconnecting source node:", e);
-            }
+                connectedSourceNodeForRecording.disconnect(localMediaStreamDestination);
+                connectedSourceNodeForRecording = null;
+            } catch (e) {}
         }
     };
 
-    mediaRecorder.onerror = event => {
-        isRecording = false;
-        console.error("MediaRecorder error:", event.error || "Unknown");
-        if (connectedSourceNode) {
+    mediaRecorder.onerror = (event) => {
+        isCurrentlyRecording = false;
+        window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: `MediaRecorder error: ${event.error ? event.error.name : "Unknown"}`, duration: recordingDurationMs / 1000 }, "*");
+        if (connectedSourceNodeForRecording && localMediaStreamDestination) {
             try {
-                connectedSourceNode.disconnect(destination);
-                connectedSourceNode = null;
-            } catch (e) {
-                console.error("Error disconnecting source node:", e);
-            }
+                connectedSourceNodeForRecording.disconnect(localMediaStreamDestination);
+                connectedSourceNodeForRecording = null;
+            } catch (e) {}
         }
     };
 
     mediaRecorder.start();
+    window.postMessage({ type: "SONGLESS_SOLVER_RECORDING_STARTED" }, "*");
+
     setTimeout(() => {
-        if (mediaRecorder.state === "recording") {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
             mediaRecorder.stop();
         }
-    }, recordingDuration + 200);
+    }, recordingDurationMs + 200);
 }
 
-function hookHowler() {
-    if (window.Howler && window.Howler.prototype.play) {
-        const originalPlay = window.Howler.prototype.play;
-
+function tryHookHowler() {
+    if (window.Howler && window.Howler.prototype && typeof window.Howler.prototype.play === 'function') {
+        if (originalHowlPlay && originalHowlPlay !== window.Howler.prototype.play) {
+        } else if (originalHowlPlay) {
+            return true;
+        }
+        originalHowlPlay = window.Howler.prototype.play;
         window.Howler.prototype.play = function (...args) {
             const howlInstance = this;
-            const sound = howlInstance._sounds?.find(s => s._paused === false || s.playing());
-            const targetNode = sound?._node;
+            const sound = howlInstance._sounds && howlInstance._sounds.find(s => s._paused === false || s.playing());
+            const targetSoundNode = sound && sound._node;
 
-            if (targetNode && targetNode.context && !isRecording) {
-                setTimeout(() => startRecording(targetNode, targetNode.context, recordingDuration), 50);
+            if (targetSoundNode && targetSoundNode.context && !isCurrentlyRecording && recordingDurationMs > 0) {
+                setTimeout(() => startRecording(targetSoundNode, targetSoundNode.context, recordingDurationMs), 50);
+            } else if (howlInstance === window.Howler && window.Howler.masterGain && !isCurrentlyRecording && recordingDurationMs > 0) {
+                setTimeout(() => startRecording(window.Howler.masterGain, window.Howler.ctx, recordingDurationMs), 50);
             }
-
-            return originalPlay.apply(this, args);
+            return originalHowlPlay.apply(this, args);
         };
+        return true;
     }
+    return false;
 }
 
-if (window.AudioContext) {
+if (window.AudioContext && window.AudioContext.prototype) {
     const originalCreateBufferSource = window.AudioContext.prototype.createBufferSource;
-
     window.AudioContext.prototype.createBufferSource = function (...args) {
         const bufferSourceNode = originalCreateBufferSource.apply(this, args);
+        const originalBufferSourceStart = bufferSourceNode.start;
         const currentAudioContext = this;
-
         bufferSourceNode.start = function (...startArgs) {
-            if (!isRecording) {
-                setTimeout(() => startRecording(bufferSourceNode, currentAudioContext, recordingDuration), 50);
+            if (window.Howler && window.Howler.ctx === currentAudioContext && originalHowlPlay) {
+            } else if (!isCurrentlyRecording && recordingDurationMs > 0) {
+                setTimeout(() => startRecording(this, currentAudioContext, recordingDurationMs), 50);
             }
-
-            return bufferSourceNode.start.apply(this, startArgs);
+            return originalBufferSourceStart.apply(this, startArgs);
         };
-
         return bufferSourceNode;
     };
 }
 
-if (window.HTMLAudioElement) {
-    const originalPlay = window.HTMLAudioElement.prototype.play;
-
+if (window.HTMLAudioElement && window.HTMLAudioElement.prototype) {
+    const originalAudioElementPlay = window.HTMLAudioElement.prototype.play;
     window.HTMLAudioElement.prototype.play = function (...args) {
-        if (!isRecording && this.src) {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (!isCurrentlyRecording && recordingDurationMs > 0 && this.src) {
+            const audioCtxForHtml5 = new (window.AudioContext || window.webkitAudioContext)();
             try {
-                const sourceNode = audioContext.createMediaElementSource(this);
-                setTimeout(() => startRecording(sourceNode, audioContext, recordingDuration), 50);
+                const sourceNode = audioCtxForHtml5.createMediaElementSource(this);
+                setTimeout(() => startRecording(sourceNode, audioCtxForHtml5, recordingDurationMs), 50);
             } catch (e) {
-                console.error("Error setting up HTML5 audio capture:", e);
+                window.postMessage({ type: "SONGLESS_SOLVER_AUDIO_DATA", error: `HTML5 audio capture setup error: ${e.message}`, duration: recordingDurationMs / 1000 }, "*");
             }
         }
-        return originalPlay.apply(this, args);
+        return originalAudioElementPlay.apply(this, args);
     };
 }
 
-setInterval(() => hookHowler(), 1500);
+const hookInterval = setInterval(() => {
+    tryHookHowler();
+}, 1500);
 
-window.addEventListener("message", event => {
-    if (event.data && event.data.type === "SET_RECORDING_DURATION") {
-        recordingDuration = event.data.duration * 1000;
+window.addEventListener("message", (event) => {
+    if (event.source === window && event.data && event.data.type === "SONGLESS_SOLVER_SET_DURATION") {
+        recordingDurationMs = event.data.duration * 1000;
     }
 });
