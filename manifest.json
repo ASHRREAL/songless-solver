@@ -5,7 +5,6 @@
   "description": "Attempts to solve songs in the Songless game. Requires user-provided ACRCloud API keys.",
   "permissions": [
     "activeTab",
-    "scripting",
     "storage"
   ],
   "host_permissions": [
